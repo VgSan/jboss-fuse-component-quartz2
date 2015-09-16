@@ -5,6 +5,7 @@ This demos show how to Load balance your cron job using Quartz
 We need to off-load the integration jobs and schedule them to run in less time during busy hours, this demo starts up two instance that runs the same cron jobs, the job simply writes a file to an FTP server. The job is implemented by Quartz2 and setting it to run twice every minute,both instances are connected to a database for clustering.
 And lastly install a camel route reads from the ftp server and print out the result.
 
+![Demo Diagram](http://2.bp.blogspot.com/-bpzqUKlFJwo/VKqD6ko9E3I/AAAAAAAAD2Q/zmH9c402AMA/s1600/Screen%2BShot%2B2015-01-05%2Bat%2B%E4%B8%8B%E5%8D%888.30.09.png)
 
 Setup
 ---------------
@@ -25,7 +26,7 @@ Add fabric server passwords for Maven Plugin to your ~/.m2/settings.xml file the
 Make sure you have setup a FTP server in the local machine. and in project folder, under projects/demojobh2/src/main/fabric8, change the ftppassowrd to your ftp password
  
 ```
-ftppassword=ZAQ!2wsx
+ftppassword=ZAQ!2wsx
 ```
 
 
@@ -41,7 +42,7 @@ under projects/demojobprint/src/main/resources/OSGI-INF/blueprint/blueprint.xml
 Change the endpoint from 
 
 ```
-sftp://demo@localhost?password={{ftppassword}}
+sftp://demo@localhost?password={{ftppassword}}
 ```
 
 to 
@@ -69,10 +70,10 @@ To run the demo
 	   http://localhost:8181    (u:admin/p:admin)
 ![Container view](images/01_allcontainer.png)
 
-3. Find container `demo01`, add profile `demo-quartzjobfrag` and `demo-quartzjob` to demo01 container
+3. Find container `demo01`, add profile `demo-quartzjobfrag` and `demo-quartzjob` to `demo01` container
 ![Demo01 deploy](images/02_demo01deploy.png)
 
-   Find container `demo02`, add profile `demo-quartzjobfrag` and `demo-quartzjob` to demo02 container
+   Find container `demo02`, add profile `demo-quartzjobfrag` and `demo-quartzjob` to `demo02` container
 ![Demo02 deploy](images/03_demo02deploy.png)
 
    Find container `demo03`, add profile `demo-quartzjobprint` to demo03 container
@@ -88,12 +89,12 @@ To run the demo
 	 
 	 in the command console, connecto to demo02 container
 	 ```
-		container-connect demo02 
+	  container-connect demo02 
 	 ```
 	 
 	 then modify the properties of instance name from ONE to TWO
 	 ```
-		config:edit MyDemoApp
+	 config:edit MyDemoApp
 	 config:propset instancename "TWO"
 	 config:update 
 	 ```
