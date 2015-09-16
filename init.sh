@@ -2,18 +2,17 @@
 basedir=$(dirname $0)
 
 
-DEMO="JBoss Fuse and Data Grid Stock Ticker Demo"
-AUTHORS="Thomas Qvarnstrom, Christina Lin, Red Hat"
+DEMO="JBoss Fuse Quartz and FTP Demo"
+AUTHORS="Christina Lin"
 SRC_DIR=$basedir/installs
 
-#JDG_INSTALL=jboss-datagrid-6.4.1-server.zip
 
 #Fuse env 
 DEMO_HOME=./target
 SUPPORT_DIR=./support
 FUSE_ZIP=jboss-fuse-full-6.2.0.redhat-133.zip
 FUSE_HOME=$DEMO_HOME/jboss-fuse-6.2.0.redhat-133
-FUSE_PROJECT=projects/stock-ticker
+FUSE_PROJECT=projects
 FUSE_SERVER_CONF=$FUSE_HOME/etc
 FUSE_SERVER_BIN=$FUSE_HOME/bin
 
@@ -25,18 +24,18 @@ clear
 
 echo
 
-ASCII_WIDTH=57
+ASCII_WIDTH=46
 
 printf "##  %-${ASCII_WIDTH}s  ##\n" | sed -e 's/ /#/g'
 printf "##  %-${ASCII_WIDTH}s  ##\n"
 printf "##  %-${ASCII_WIDTH}s  ##\n" "Setting up the ${DEMO}"
 printf "##  %-${ASCII_WIDTH}s  ##\n"
 printf "##  %-${ASCII_WIDTH}s  ##\n"
-printf "##  %-${ASCII_WIDTH}s  ##\n" "    # ###   ###        #### #  #  ### ####"
-printf "##  %-${ASCII_WIDTH}s  ##\n" "    # #  # #       #   #    #  # #    #"
-printf "##  %-${ASCII_WIDTH}s  ##\n" "    # #  # #  ##  ###  ###  #  # #### ####"
-printf "##  %-${ASCII_WIDTH}s  ##\n" "#   # #  # #   #   #   #    #  #    # #"
-printf "##  %-${ASCII_WIDTH}s  ##\n" " ###  ###   ###        #    #### ###  ####"  
+printf "##  %-${ASCII_WIDTH}s  ##\n" "#### #  #  ### ####"
+printf "##  %-${ASCII_WIDTH}s  ##\n" "#    #  # #    #"
+printf "##  %-${ASCII_WIDTH}s  ##\n" "###  #  # #### ####"
+printf "##  %-${ASCII_WIDTH}s  ##\n" "#    #  #    # #"
+printf "##  %-${ASCII_WIDTH}s  ##\n" "#    #### ###  ####"  
 printf "##  %-${ASCII_WIDTH}s  ##\n"
 printf "##  %-${ASCII_WIDTH}s  ##\n"
 printf "##  %-${ASCII_WIDTH}s  ##\n"
@@ -95,10 +94,6 @@ echo "  - stopping any running fuse instances"
 echo
 jps -lm | grep karaf | grep -v grep | awk '{print $1}' | xargs kill -KILL
 
-#If JDG is running stop it
-echo "  - stopping any running datagrid instances"
-jps -lm | grep jboss-datagrid | grep -v grep | awk '{print $1}' | xargs kill -KILL
-
 sleep 2
 
 echo
@@ -145,28 +140,16 @@ echo "  - enable camel counter in console in jmx.acl.whitelist.properties  ..."
 echo
 cp $SUPPORT_DIR/fuse/jmx.acl.whitelist.properties $FUSE_HOME/fabric/import/fabric/profiles/default.profile/
 
-echo "  - adding DataGrid repo to org.ops4j.pax.url.mvn.cfg file..."
+echo "  - setup H2 database for quartz job cluster  ..."
 echo
-cp $SUPPORT_DIR/fuse/org.ops4j.pax.url.mvn.cfg $FUSE_SERVER_CONF
+if [ -x ~/h2 ]; then
+	rm -rf ~/h2/cronjob.mv.db
+else
+	mkdir ~/h2
+fi
 
-echo "  - adding DataGrid repo to io.fabric8.agent.properties file..."
-echo
-cp $SUPPORT_DIR/fuse/io.fabric8.agent.properties $FUSE_HOME/fabric/import/fabric/profiles/default.profile/
+cp $SUPPORT_DIR/fuse/cronjob.mv.db ~/h2/
 
- 
-
-
-#echo "  - installing datagrid"
-#echo
-#unzip -q -d target $SRC_DIR/$JDG_INSTALL
-
-
-# Build the projects
-# echo "  - building the stock-ticker project"
-# echo
-# pushd projects/stock-ticker > /dev/null
-# mvn -q clean install
-# popd > /dev/null
 
 echo "  - starting fuse"
 echo
@@ -199,37 +182,35 @@ done
 #===================================================================
 
 
-echo "  - install stock ticker model "
+echo "  - install Fragment Bundle in a profile "
 echo
 
-cd $FUSE_PROJECT/stock-ticker-model
-mvn clean install
+cd $FUSE_PROJECT/demojobfragh2
+mvn fabric8:deploy
 
-cd ../stock-ticker-historicalquote
+cd ../demojobh2
 
-echo "  - deploy stock ticker historical order integration to fabric"
+echo "  - deploy demo project to fabric"
+echo
+mvn fabric8:deploy
+
+cd ../demojobprint
+
+echo "  - deploy printer profile to fabric"
 echo
 mvn fabric8:deploy
 
 
-cd ../stock-ticker-ploter
-
-echo "  - package stock ticker ploter"
-echo
-mvn clean install
-mvn assembly:single
 
 #Back to project dir
-cd ../../..
+cd ../..
 
 echo "  - Create containers "
 echo         
-sh $FUSE_SERVER_BIN/client -r 2 -d 5 'container-create-child root tickercon'
+sh $FUSE_SERVER_BIN/client -r 2 -d 5 'container-create-child root demo01'
+sh $FUSE_SERVER_BIN/client -r 2 -d 5 'container-create-child root demo02'
+sh $FUSE_SERVER_BIN/client -r 2 -d 5 'container-create-child root demo03'
 
-
-# echo "  - installing stock-ticker features"
-# echo
-# $basedir/support/install-features.sh
 
 
 ASCII_WIDTH=105
@@ -237,26 +218,21 @@ ASCII_WIDTH=105
 printf "=  %-${ASCII_WIDTH}s  =\n" | sed -e 's/ /#/g'
 printf "=  %-${ASCII_WIDTH}s  =\n"
 printf "=  %-${ASCII_WIDTH}s  =\n" " Starting the camel route in JBoss Fuse as follows:"
-printf "=  %-${ASCII_WIDTH}s  =\n"
+printf "=  %-${ASCII_WIDTH}s  =\n" "   Make sure you have an FTP server setup locally."
 printf "=  %-${ASCII_WIDTH}s  =\n"
 printf "=  %-${ASCII_WIDTH}s  =\n" "    - login to Fuse management console at:"
 printf "=  %-${ASCII_WIDTH}s  =\n" 
-printf "=  %-${ASCII_WIDTH}s  =\n" "        http://localhost:8181    (u:admin/p:admin)"
+printf "=  %-${ASCII_WIDTH}s  =\n" "      http://localhost:8181    (u:admin/p:admin)"
 printf "=  %-${ASCII_WIDTH}s  =\n"
-printf "=  %-${ASCII_WIDTH}s  =\n" "    - go to Services Tab, under container, find containt tickercon"  
+printf "=  %-${ASCII_WIDTH}s  =\n" "    - go to Services Tab, under container,"  
 printf "=  %-${ASCII_WIDTH}s  =\n"
-printf "=  %-${ASCII_WIDTH}s  =\n" "        add profile demo-jdg-stockticker to tickercon container"
+printf "=  %-${ASCII_WIDTH}s  =\n" "      add both profiles demo-quartzjobfrag and demo-quartzjob to demo01 and demo02 container respectively"
 printf "=  %-${ASCII_WIDTH}s  =\n" 
-printf "=  %-${ASCII_WIDTH}s  =\n" "    - start up ploter, go to /support folder "
+printf "=  %-${ASCII_WIDTH}s  =\n" "    - install printer prpfile "
 printf "=  %-${ASCII_WIDTH}s  =\n"
-printf "=  %-${ASCII_WIDTH}s  =\n" "        run ./start-client.sh"
-printf "=  %-${ASCII_WIDTH}s  =\n"
-printf "=  %-${ASCII_WIDTH}s  =\n" "    - start stock quote and order, place the /support/stockorderRHT1001.xml file to "
-printf "=  %-${ASCII_WIDTH}s  =\n"
-printf "=  %-${ASCII_WIDTH}s  =\n" "        target/jboss-fuse-6.2.0.redhat-133/instances/tickercon/stockfolder"
+printf "=  %-${ASCII_WIDTH}s  =\n" "      add profiles demo-quartzjobprint to demo03 container"
 printf "=  %-${ASCII_WIDTH}s  =\n"
 printf "=  %-${ASCII_WIDTH}s  =\n" "    - once you are done, to stop and clean everything run"
 printf "=  %-${ASCII_WIDTH}s  =\n" "        ./clean.sh"
 printf "=  %-${ASCII_WIDTH}s  =\n"
 printf "=  %-${ASCII_WIDTH}s  =\n" | sed -e 's/ /#/g'
-

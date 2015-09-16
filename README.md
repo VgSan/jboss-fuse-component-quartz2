@@ -1,7 +1,9 @@
-Scalable and fast storage for JBoss Fuse using JBoss Data Grid
+JBoss Fuse Quartz and FTP Demo
 =====================================
 
-This demos show how to use the camel-jbossdatagrid component as a fast storage to an integration case.
+This demos show how to Load balance your cron job using Quartz
+We need to off-load the integration jobs and schedule them to run in less time during busy hours, this demo starts up two instance that runs the same cron jobs, the job simply writes a file to an FTP server. The job is implemented by Quartz2 and setting it to run twice every minute,both instances are connected to a database for clustering.
+And lastly install a camel route reads from the ftp server and print out the result.
 
 
 Setup
@@ -10,72 +12,98 @@ To setup the infrastructure for the demo download the follwoing files to the `in
 
 * jboss-fuse-full-6.2.0.redhat-133.zip
 
-After that run the `init.sh` script
+Add fabric server passwords for Maven Plugin to your ~/.m2/settings.xml file the fabric server's user and password so that the maven plugin can login to the fabric.
 
-		$ sh init.sh
+```
+<server>
+  <id>fabric8.upload.repo</id>
+  <username>admin</username>
+  <password>admin</password>
+</server>
+```
 
-Demo storty
------------
-A stock market broker needs to provide it's brokers with historical data of past stock close value (amount of shares that trade hands from sellers to buyers). And also needs to list all today's buyer's shares and how much they will earn if they sell their shares today after showing the past value graph. The broker decides to send order information to trigger stock tick event, the information are send to JBoss Fuse. It implements a integration flow to request for historical data from external SAAS, then pass the data to stock ticker console, and then process the order by parsing the XML to Java POJO for display and further process. 
+Make sure you have setup a FTP server in the local machine. and in project folder, under projects/demojobh2/src/main/fabric8, change the ftppassowrd to your ftp password
+ 
+```
+ftppassword=ZAQ!2wsx
+```
 
-The problem
------------
-The volume of historical stock tick data is very high and to be able to consume the events without overflowing the integration the sizing team has calculated that the integration flow needs to be able to process an event in under 10 ms. To be able to meet the requirement of storing the last 100 events they it department has identified that their standard database storage, that has an SLA of 500 ms for a write operation, is will not be able to meet this requirement. Also the inital data that triggers the event contains customer information, this information should not be passed to external services. 
 
-The solution
-------------
-JBoss Data Grid recently (since 6.4) introduced a camel component capable of storing high volume of data in-memory. It also provides eviction strategy where the data grid automatically can evict events based on different algorithms like FIFO, LIRS etc. JBoss Data Grid also supports different architectures and can either run embedded or remote, where embedded gives he best performance but are then sharing resources (memory, cpu etc) with the JBoss Fuse, while remote adds a network call but gives added scalability options for the data layer. And it's memory fast caching nature make it the prefect medium for storing temporary data as needed in the claim check EIP.  
+OR
+------
+If you don't have a ftp server
+You can change the FTP component to File.By change both file below
 
-The broker decides to implement a solution based on JBoss Fuse and JBoss Data Grid running in remote mode.
+under projects/demojobh2/src/main/resources/OSGI-INF/blueprint/blueprint.xml
+and 
+under projects/demojobprint/src/main/resources/OSGI-INF/blueprint/blueprint.xml
 
-![Network diagram](images/network-diagram.svg)
+Change the endpoint from 
 
-![Stock Ticker console](images/stockticker.png)
+```
+sftp://demo@localhost?password={{ftppassword}}
+```
+
+to 
+
+```
+file:~/tempftp
+```
 
 To run the demo
 -----------------
 
 1. Open a terminal
 
-1. Clone this git repo TODO: add url
+   Clone this git repo TODO: add url
 
 	    git clone <URL>
 
-1. Change current directory to the cloned directory
-
-1. Download the software and place it in the `installs` directory
-
-1. Run the `init.sh` script to install JBoss Fuse and deploy the application
-
+   Run the `init.sh` script to install JBoss Fuse and deploy the application
+	   ```
 	   sh init.sh
+	   ```
 
-1. Login to Fuse management console
+2. Login to Fuse management console. Go to Services Tab, under container,
 
 	   http://localhost:8181    (u:admin/p:admin)
-![Network diagram](images/01_containers.png)
+![Container view](images/01_allcontainer.png)
 
-2. Go to Services Tab, under container, find containt `tickercon`, add profile `demo-jdg-stockticker` to tickercon container
+3. Find container `demo01`, add profile `demo-quartzjobfrag` and `demo-quartzjob` to demo01 container
+![Demo01 deploy](images/02_demo01deploy.png)
 
-![Deploy profile](images/02_deploy2container.png)
-3. Start a stock plotter client
+   Find container `demo02`, add profile `demo-quartzjobfrag` and `demo-quartzjob` to demo02 container
+![Demo02 deploy](images/03_demo02deploy.png)
 
-	   sh support/start-client.sh
+   Find container `demo03`, add profile `demo-quartzjobprint` to demo03 container
+![Demo03 deploy](images/04_demo03deploy.png)
+![All Container Done](images/05_allcontainerdone.png)
 
-1. Start stock ticker by providing quote and order, place the `/support/stockorderRHT1001.xml file` to
 
-	   ./target/jboss-fuse-6.2.0.redhat-133/instances/tickercon/stockfolder
 
-3. Watch as stock ticks are plotted in the client.
-
-1. Open the Fuse console and verify that the processing of event.
-![Stock Ticker console](images/03_logs.png)
-![Route stats](images/04_routestats.png)
-![Pipeline](images/05_pipeline.png)
-![Store orders](images/06_storeorders.png)
-![Historical data](images/07_gethistoricaldata.png)
-![Cache Historical](images/08_cachehistoricaldata.png)
-![Start Order](images/09_startorders.png)
-![Cache Order](images/10_cacheorders.png)
-
-1. Done!
+4. Go to target/jboss-fuse-6.2.0.redhat-133/bin
+	 ```
+	 sh client.sh
+	 ```
+	 
+	 in the command console, connecto to demo02 container
+	 ```
+		container-connect demo02 
+	 ```
+	 
+	 then modify the properties of instance name from ONE to TWO
+	 ```
+		config:edit MyDemoApp
+	 config:propset instancename "TWO"
+	 config:update 
+	 ```
+ ![property change](images/06_demo02propertychange.png)
+5. Go to Demo03 container by clicking on the link, and see the the jobs are run by different instances.
  
+ ![click demo03 container view](images/07_clickdemo03.png)
+ ![log view](images/08_logview.png)
+
+6. Done!
+
+![camel view demo01](images/09_camelviewdemo01.png)
+![camel view demo02](images/10_camelviewdemo02.png)
